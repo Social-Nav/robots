@@ -1,0 +1,10 @@
+robot_base_frame: 'base_footprint'
+robot_odom_frame: 'odom'
+robot_model: LinkHou_S2
+robot_radius: 0.35
+
+footprint: "[ [0.28, 0.27], [0.28, -0.27], [-0.28, -0.27], [-0.28, 0.27] ]"
+
+is_holonomic: true
+
+z_offset: 0.0

@@ -8,6 +8,7 @@ from arena_simulation_setup.tree import Identifier, PathView, SimplePathResolver
 from arena_simulation_setup.utils.models import ModelWrapper
 from arena_simulation_setup.utils.models.model_loader import (
     ModelProvider_URDF,
+    ModelProvider_USD,
 )
 
 
@@ -60,6 +61,7 @@ class RobotView(PathView):
         return ModelWrapper(
             self.name,
             {
+                **ModelProvider_USD.asdict(self.path, self.name),
                 **ModelProvider_URDF.asdict(self.path, self.name),
             }
         )
