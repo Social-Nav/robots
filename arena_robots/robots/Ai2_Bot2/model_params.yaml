@@ -4,7 +4,7 @@ observation_sources:
 observation_sources_dict:
   lidar:
     topic: ${namespace}/laser_scan
-    sensor_frame: ${namespace}/lidar_frame
+    sensor_frame: ${frame}lidar_frame
     max_obstacle_height: 2.0
     clearing: true
     marking: true
@@ -22,7 +22,7 @@ is_holonomic: false
 
 z_offset: 0.0
 
-# speed override (3x base, smooth motion)
+# speed override
 max_vel_x: 0.66
 max_vel_theta: 1.35
 max_speed_xy: 0.66
