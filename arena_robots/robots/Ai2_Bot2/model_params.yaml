@@ -4,6 +4,7 @@ observation_sources:
 observation_sources_dict:
   lidar:
     topic: ${namespace}/laser_scan
+    sensor_frame: ${namespace}/lidar_frame
     max_obstacle_height: 2.0
     clearing: true
     marking: true
@@ -11,7 +12,7 @@ observation_sources_dict:
 
 robot_base_frame: 'base_footprint'
 robot_odom_frame: 'odom'
-robot_sensor_frame: 'lidar_link'
+robot_sensor_frame: 'lidar_frame'
 robot_model: Ai2_Bot2
 robot_radius: 0.3
 
@@ -19,13 +20,25 @@ footprint: "[ [0.25, 0.25], [0.25, -0.25], [-0.25, -0.25], [-0.25, 0.25] ]"
 
 is_holonomic: false
 
-laser:
-  angle:
-    increment: 0.00654497222
-    max: 2.35619
-    min: -2.35619
-  num_beams: 720
-  range: 30.0
-  update_rate: 10
-
 z_offset: 0.0
+
+# speed override (3x base, smooth motion)
+max_vel_x: 0.66
+max_vel_theta: 1.35
+max_speed_xy: 0.66
+velocity_smoother_max_velocity: [0.66, 0.0, 2.4]
+velocity_smoother_min_velocity: [-0.66, 0.0, -2.4]
+velocity_smoother_max_accel: [1.0, 0.0, 2.0]
+velocity_smoother_max_decel: [-0.5, 0.0, -1.0]
+
+# static tf
+sensor_frame_transforms:
+  - parent: base_footprint
+    child: lidar_frame
+    x: 0.261
+    y: 0.0
+    z: 0.1265
+    qx: 0.0
+    qy: 0.0
+    qz: 0.70711
+    qw: 0.70711

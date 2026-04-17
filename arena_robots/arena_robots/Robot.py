@@ -22,7 +22,7 @@ class ModelParams(dict[str, typing.Any]):
 
     @property
     def base_frame(self) -> str:
-        return self.get('robot_base_frame', 'base_link')
+        return self.get('robot_base_frame', 'base_footprint')
 
     @property
     def odom_frame(self) -> str:
@@ -31,6 +31,17 @@ class ModelParams(dict[str, typing.Any]):
     @property
     def z_offset(self) -> float:
         return self.get('z_offset', 0.0)
+
+    @property
+    def sensor_frame_transforms(self) -> list[dict]:
+        """List of static TF transforms to publish for sensor frames.
+
+        Each entry is a dict with keys:
+          parent (str), child (str),
+          x, y, z (float, default 0),
+          qx, qy, qz, qw (float, defaults to identity quaternion)
+        """
+        return self.get('sensor_frame_transforms', [])
 
 
 class RobotView(PathView):
