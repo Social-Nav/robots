@@ -10,13 +10,15 @@ observation_sources_dict:
     marking: true
     data_type: "LaserScan"
 
-robot_base_frame: 'base_footprint'
+robot_base_frame: 'base_link'
 robot_odom_frame: 'odom'
 robot_sensor_frame: 'lidar_frame'
 robot_model: Ai2_Bot2
+# USD 资源重定向到 arena_robots/deps/robot_usds 子模块
+usd_redirect: ../../../deps/robot_usds/humannoid/Ai2_Bot2/Ai2_Bot2.usd
 robot_radius: 0.28
 
-footprint: "[ [0.29, 0.28], [0.29, -0.28], [-0.29, -0.28], [-0.29, 0.28] ]"
+footprint: "[ [0.31, 0.2], [0.31, -0.2], [-0.35, -0.2], [-0.35, 0.2] ]"
 
 is_holonomic: false
 
@@ -32,7 +34,7 @@ velocity_smoother_max_accel: [0.5, 0.0, 0.5]
 velocity_smoother_max_decel: [-0.5, 0.0, -0.5]
 
 sensor_frame_transforms:
-  - parent: base_footprint
+  - parent: base_link
     child: lidar_frame
     x: 0.261
     y: 0.0
@@ -41,3 +43,12 @@ sensor_frame_transforms:
     qy: 0.0
     qz: 0.70711
     qw: 0.70711
+
+# Isaac Sim 内 VLN 数据集采集（omni.replicator）：USD prim 路径
+# 须与场景中机器人实例一致：完整路径为 /World/Robots/<robot_stage_name>/<suffix>
+# 若 task_generator 生成 sim_path 为 robot0，请将 robot_stage_name 改为 robot0
+vln_dataset_logger:
+  robot_stage_name: Ai2_Bot2
+  camera_prim_suffix: head_link2/head_camera/d435/head_camera
+  lidar_prim_suffix: Ai2_Bot2_Chassis/base_footprint/base_link/lidar_link
+  pedestrian_root_path: /World/Pedestrians

@@ -4,3 +4,6 @@
 [submodule "deps/turtlebot4"]
 	path = deps/turtlebot4
 	url = https://github.com/turtlebot/turtlebot4.git
+[submodule "deps/robot_usds"]
+	path = deps/robot_usds
+	url = https://github.com/fiveages-sim/robot_usds.git
