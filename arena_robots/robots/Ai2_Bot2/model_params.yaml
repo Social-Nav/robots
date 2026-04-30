@@ -25,13 +25,13 @@ is_holonomic: false
 z_offset: 0.0
 
 # speed override
-max_vel_x: 0.4
-max_vel_theta: 0.8
-max_speed_xy: 0.4
-velocity_smoother_max_velocity: [0.4, 0.0, 0.8]
-velocity_smoother_min_velocity: [-0.4, 0.0, -0.8]
-velocity_smoother_max_accel: [0.5, 0.0, 0.5]
-velocity_smoother_max_decel: [-0.5, 0.0, -0.5]
+max_vel_x: 0.65
+max_vel_theta: 1.5
+max_speed_xy: 0.65
+velocity_smoother_max_velocity: [0.65, 0.0, 1.5]
+velocity_smoother_min_velocity: [-0.65, 0.0, -1.5]
+velocity_smoother_max_accel: [0.8, 0.0, 1.4]
+velocity_smoother_max_decel: [-1.2, 0.0, -1.8]
 
 sensor_frame_transforms:
   - parent: base_link
