@@ -9,6 +9,7 @@ observation_sources_dict:
     clearing: true
     marking: true
     data_type: "LaserScan"
+    observation_persistence: 0.4
 
 robot_base_frame: 'base_link'
 robot_odom_frame: 'odom'
