@@ -7,3 +7,4 @@
 [submodule "deps/robot_usds"]
 	path = deps/robot_usds
 	url = https://github.com/fiveages-sim/robot_usds.git
+	branch = galbot

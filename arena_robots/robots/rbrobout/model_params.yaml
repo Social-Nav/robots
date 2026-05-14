@@ -29,7 +29,7 @@ polygons:
 polygons_dict:
   StopPolygon:
     type: "polygon"
-    points: "[ [0.5, 0.35], [0.5, -0.35], [-0.5, -0.35], [-0.5, 0.35] ]" # 使用新的足迹
+    points: [0.5, 0.35, 0.5, -0.35, -0.5, -0.35, -0.5, 0.35] # 使用新的足迹
     action_type: "stop"
     min_points: 4
     visualize: True
@@ -40,7 +40,7 @@ planner_plugins:
   - GridBased
 planner_plugins_dict:
   GridBased:
-    plugin: "nav2_navfn_planner::NavfnPlanner"
+    plugin: "nav2_navfn_planner/NavfnPlanner"
     tolerance: 0.5
     use_astar: false
     allow_unknown: true

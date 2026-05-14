@@ -20,7 +20,7 @@ polygons:
 polygons_dict:
   StopPolygon:
     type: polygon
-    points: "[ [0.1, 0.1], [0.1, -0.1], [-0.1, -0.1], [-0.1, 0.1] ]"
+    points: [0.1, 0.1, 0.1, -0.1, -0.1, -0.1, -0.1, 0.1]
     action_type: stop
     min_points: 4
     visualize: true
@@ -34,7 +34,7 @@ planner_plugins:
   - GridBased
 planner_plugins_dict:
   GridBased:
-    plugin: nav2_navfn_planner::NavfnPlanner
+    plugin: nav2_navfn_planner/NavfnPlanner
     tolerance: 0.5
     use_astar: false
     allow_unknown: true

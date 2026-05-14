@@ -71,6 +71,22 @@
     "gz_type": "gz.msgs.Image",
     "direction": "[",
   },
+  # Top-down Camera Info (Gazebo -> ROS2)
+  {
+    "gz_topic": "{world}/model/{robot_name}/link/top_down_camera_frame/sensor/top_down_camera/camera_info",
+    "ros_topic": "top_down_camera/camera_info",
+    "ros_type": "sensor_msgs/msg/CameraInfo",
+    "gz_type": "gz.msgs.CameraInfo",
+    "direction": "[",
+  },
+  # Top-down Camera Image (Gazebo -> ROS2)
+  {
+    "gz_topic": "{world}/model/{robot_name}/link/top_down_camera_frame/sensor/top_down_camera/image",
+    "ros_topic": "top_down_camera/image",
+    "ros_type": "sensor_msgs/msg/Image",
+    "gz_type": "gz.msgs.Image",
+    "direction": "[",
+  },
   # RGB-D Point Cloud (Gazebo -> ROS2)
   {
     "gz_topic": "{world}/model/{robot_name}/link/oakd_rgb_camera_frame/sensor/rgbd_camera/points",
@@ -83,13 +99,6 @@
   {
     "gz_topic": "/model/{robot_name}/tf",
     "ros_topic": "/tf",
-    "ros_type": "tf2_msgs/msg/TFMessage",
-    "gz_type": "gz.msgs.Pose_V",
-    "direction": "[",
-  },
-  {
-    "gz_topic": "/model/{robot_name}/tf_static",
-    "ros_topic": "/tf_static",
     "ros_type": "tf2_msgs/msg/TFMessage",
     "gz_type": "gz.msgs.Pose_V",
     "direction": "[",

@@ -13,7 +13,7 @@ polygons:
 polygons_dict:
   StopPolygon:
     type: polygon
-    points: "[ [0.1, 0.1], [0.1, -0.1], [-0.1, -0.1], [-0.1, 0.1] ]"
+    points: [0.1, 0.1, 0.1, -0.1, -0.1, -0.1, -0.1, 0.1]
     action_type: stop
     enabled: true
     min_points: 4

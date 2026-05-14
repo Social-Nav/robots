@@ -26,7 +26,7 @@ polygons_dict:
   StopPolygon:
     type: "polygon"
     # MODIFIED: Adjusted to be smaller than the new, accurate footprint.
-    points: "[ [0.3, 0.2], [0.3, -0.2], [-0.3, -0.2], [-0.3, 0.2] ]"
+    points: [0.3, 0.2, 0.3, -0.2, -0.3, -0.2, -0.3, 0.2]
     action_type: "stop"
     min_points: 3
     visualize: True
@@ -39,7 +39,7 @@ planner_plugins:
   - GridBased
 planner_plugins_dict:
   GridBased:
-    plugin: "nav2_navfn_planner::NavfnPlanner"
+    plugin: "nav2_navfn_planner/NavfnPlanner"
     tolerance: 0.5
     use_astar: false
     allow_unknown: true
