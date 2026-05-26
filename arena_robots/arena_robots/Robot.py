@@ -33,6 +33,10 @@ class ModelParams(dict[str, typing.Any]):
         return self.get('z_offset', 0.0)
 
     @property
+    def scale(self) -> float:
+        return float(self.get('scale', 1.0))
+
+    @property
     def sensor_frame_transforms(self) -> list[dict]:
         """List of static TF transforms to publish for sensor frames.
 
