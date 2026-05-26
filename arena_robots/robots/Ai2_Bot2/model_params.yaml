@@ -1,5 +1,8 @@
-observation_sources_string: lidar
+observation_sources_string: lidar depth_pcl
 observation_sources:
+  - lidar
+  - depth_pcl
+collision_monitor_sources:
   - lidar
 observation_sources_dict:
   lidar:
@@ -9,30 +12,50 @@ observation_sources_dict:
     clearing: true
     marking: true
     data_type: "LaserScan"
-    observation_persistence: 0.4
+    raytrace_max_range: 2.0
+    raytrace_min_range: 0.0
+    obstacle_max_range: 2.0
+    obstacle_min_range: 0.0
+  depth_pcl:
+    topic: ${namespace}/depth_pcl
+    sensor_frame: ${frame}chassis_camera
+    max_obstacle_height: 1.5
+    min_obstacle_height: 0.1
+    clearing: true
+    marking: true
+    data_type: "PointCloud2"
+    type: pointcloud
+    raytrace_max_range: 2.0
+    raytrace_min_range: 0.0
+    obstacle_max_range: 2.0
+    obstacle_min_range: 0.0
 
 robot_base_frame: 'base_link'
 robot_odom_frame: 'odom'
 robot_sensor_frame: 'lidar_frame'
 robot_model: Ai2_Bot2
 # USD 资源重定向到 arena_robots/deps/robot_usds 子模块
-usd_redirect: ../../../deps/robot_usds/humannoid/Ai2_Bot2/Ai2_Bot2.usd
-robot_radius: 0.28
+usd_redirect: ../../../deps/robot_usds/humanoid/Ai2_Bot2/Ai2_Bot2.usda
+robot_radius: 0.4
 
-footprint: "[ [0.31, 0.2], [0.31, -0.2], [-0.35, -0.2], [-0.35, 0.2] ]"
+# 整体缩放系数（USD xformOp:scale + sensor TF + footprint + robot_radius + z_offset 自动按此乘数缩放）
+# 速度/加速度等控制参数不缩放（保持物理 odom 单位一致）
+scale: 0.8
+
+footprint: "[ [0.35, 0.4], [0.35, -0.4], [-0.35, -0.4], [-0.35, 0.4] ]"
 
 is_holonomic: false
 
 z_offset: 0.0
 
 # speed override
-max_vel_x: 0.65
-max_vel_theta: 1.5
-max_speed_xy: 0.65
-velocity_smoother_max_velocity: [0.65, 0.0, 1.5]
-velocity_smoother_min_velocity: [-0.65, 0.0, -1.5]
-velocity_smoother_max_accel: [0.8, 0.0, 1.4]
-velocity_smoother_max_decel: [-1.2, 0.0, -1.8]
+max_vel_x: 0.45
+max_vel_theta: 20.0
+max_speed_xy: 0.45
+velocity_smoother_max_velocity: [0.45, 0.0, 20.0]
+velocity_smoother_min_velocity: [-0.45, 0.0, -20.0]
+velocity_smoother_max_accel: [0.3, 0.0, 20.0]
+velocity_smoother_max_decel: [-0.8, 0.0, -20.0]
 
 sensor_frame_transforms:
   - parent: base_link
@@ -44,6 +67,15 @@ sensor_frame_transforms:
     qy: 0.0
     qz: 0.70711
     qw: 0.70711
+  - parent: base_link
+    child: chassis_camera
+    x: 0.315
+    y: 0.0
+    z: 0.104
+    qx: -0.5
+    qy: 0.5
+    qz: -0.5
+    qw: 0.5
 
 # Isaac Sim 内 VLN 数据集采集（omni.replicator）：USD prim 路径
 # 须与场景中机器人实例一致：完整路径为 /World/Robots/<robot_stage_name>/<suffix>
