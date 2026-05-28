@@ -16,7 +16,7 @@ robot_odom_frame: 'odom'
 robot_sensor_frame: 'lidar_frame'
 robot_model: Ai2_Bot2
 # USD 资源重定向到 arena_robots/deps/robot_usds 子模块
-usd_redirect: /home/ubuntu/arena_jazzy_ws/src/Arena/arena_robots/deps/robot_usds/humanoid/Ai2_Bot2/Ai2_Bot2.usd
+usd_redirect: /opt/arena_ws/src/Arena/arena_robots/deps/robot_usds/humanoid/Ai2_Bot2/Ai2_Bot2.usda
 robot_radius: 0.28
 
 footprint: "[ [0.31, 0.2], [0.31, -0.2], [-0.35, -0.2], [-0.35, 0.2] ]"
