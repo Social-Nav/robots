@@ -21,6 +21,18 @@ robot_radius: 0.28
 
 footprint: "[ [0.31, 0.2], [0.31, -0.2], [-0.35, -0.2], [-0.35, 0.2] ]"
 
+polygons:
+  - StopPolygon
+polygons_dict:
+  StopPolygon:
+    type: "polygon"
+    points: "[[0.31, 0.2], [0.31, -0.2], [-0.35, -0.2], [-0.35, 0.2]]"
+    action_type: "stop"
+    min_points: 4
+    visualize: true
+    polygon_pub_topic: "polygon_stop"
+    enabled: true
+
 is_holonomic: false
 
 z_offset: 0.0
