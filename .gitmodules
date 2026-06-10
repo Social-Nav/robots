@@ -1,10 +1,12 @@
 [submodule "deps/jackal"]
 	path = deps/jackal
 	url = https://github.com/jackal/jackal.git
+	branch = noetic-devel
 [submodule "deps/turtlebot4"]
 	path = deps/turtlebot4
 	url = https://github.com/turtlebot/turtlebot4.git
+	branch = jazzy
 [submodule "deps/robot_usds"]
 	path = deps/robot_usds
 	url = https://github.com/fiveages-sim/robot_usds.git
-	branch = galbot
+	branch = feature/Social-Nav
