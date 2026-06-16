@@ -8,5 +8,5 @@
 	branch = jazzy
 [submodule "deps/robot_usds"]
 	path = deps/robot_usds
-	url = https://github.com/fiveages-sim/robot_usds.git
-	branch = feature/Social-Nav
+	url = https://github.com/Social-Nav/robot_usds.git
+	branch = feature/remove-private-fiveages-submodules
