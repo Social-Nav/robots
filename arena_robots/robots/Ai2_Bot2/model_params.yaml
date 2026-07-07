@@ -4,6 +4,7 @@ observation_sources:
   - depth_pcl
 collision_monitor_sources:
   - lidar
+  - depth_pcl
 observation_sources_dict:
   lidar:
     topic: ${namespace}/laser_scan
@@ -36,13 +37,13 @@ robot_sensor_frame: 'lidar_frame'
 robot_model: Ai2_Bot2
 # USD 资源重定向到 arena_robots/deps/robot_usds 子模块
 usd_redirect: ../../../deps/robot_usds/humanoid/Ai2_Bot2/Ai2_Bot2.usda
-robot_radius: 0.4
+robot_radius: 0.48
 
 # 整体缩放系数（USD xformOp:scale + sensor TF + footprint + robot_radius + z_offset 自动按此乘数缩放）
 # 速度/加速度等控制参数不缩放（保持物理 odom 单位一致）
 scale: 0.8
 
-footprint: "[ [0.35, 0.4], [0.35, -0.4], [-0.35, -0.4], [-0.35, 0.4] ]"
+footprint: "[ [0.42, 0.48], [0.42, -0.48], [-0.42, -0.48], [-0.42, 0.48] ]"
 
 is_holonomic: false
 
@@ -54,8 +55,8 @@ max_vel_theta: 20.0
 max_speed_xy: 0.45
 velocity_smoother_max_velocity: [0.45, 0.0, 20.0]
 velocity_smoother_min_velocity: [-0.45, 0.0, -20.0]
-velocity_smoother_max_accel: [0.3, 0.0, 20.0]
-velocity_smoother_max_decel: [-0.8, 0.0, -20.0]
+velocity_smoother_max_accel: [0.5, 0.0, 20.0]
+velocity_smoother_max_decel: [-0.5, 0.0, -20.0]
 
 sensor_frame_transforms:
   - parent: base_link
@@ -77,11 +78,20 @@ sensor_frame_transforms:
     qz: -0.5
     qw: 0.5
 
-# Isaac Sim 内 VLN 数据集采集（omni.replicator）：USD prim 路径
+# Isaac Sim 内数据集采集（omni.replicator）：USD prim 路径
 # 须与场景中机器人实例一致：完整路径为 /World/Robots/<robot_stage_name>/<suffix>
 # 若 task_generator 生成 sim_path 为 robot0，请将 robot_stage_name 改为 robot0
-vln_dataset_logger:
+data_logger:
   robot_stage_name: Ai2_Bot2
   camera_prim_suffix: head_link2/head_camera/d435/head_camera
   lidar_prim_suffix: Ai2_Bot2_Chassis/base_footprint/base_link/lidar_link
   pedestrian_root_path: /World/Pedestrians
+
+# Proactive-yielding trigger 触发并暂停仿真后，抓取的静态快照（isaac 侧 snapshot_capturer）
+# head/back 相机取 RGB+深度；topdown 为临时正射相机，以机器人为中心俯视，仅 RGB。
+# 相机 prim 完整路径 = /World/Robots/<robot_stage_name>/<suffix>（stage 名复用上面的 data_logger 配置）
+snapshot:
+  head_camera_suffix: head_link2/head_camera/d435/head_camera
+  back_camera_suffix: body_link4/back_camera/d435/back_camera
+  topdown_half_extent: 3.0    # 俯视图覆盖半径 (m)，视野边长 = 2×该值
+  topdown_height: 3.0         # 俯视相机离机器人高度 (m) — 略高于场景天花板
