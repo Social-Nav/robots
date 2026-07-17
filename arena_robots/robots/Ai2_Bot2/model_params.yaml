@@ -50,13 +50,13 @@ is_holonomic: false
 z_offset: 0.0
 
 # speed override
-max_vel_x: 0.45
-max_vel_theta: 20.0
-max_speed_xy: 0.45
-velocity_smoother_max_velocity: [0.45, 0.0, 20.0]
-velocity_smoother_min_velocity: [-0.45, 0.0, -20.0]
-velocity_smoother_max_accel: [0.5, 0.0, 20.0]
-velocity_smoother_max_decel: [-0.5, 0.0, -20.0]
+max_vel_x: 0.4
+max_vel_theta: 1.5
+max_speed_xy: 0.4
+velocity_smoother_max_velocity: [0.4, 0.0, 1.5]   # θ 1.3->1.5 (=max_vel_theta): faster large-angle in-place turn
+velocity_smoother_min_velocity: [0.0, 0.0, -1.5]   # vx min 0 = no reverse at smoother stage too; angular stays ±1.5 (turn both ways)
+velocity_smoother_max_accel: [0.5, 0.0, 2.0]       # θ accel back to 2.0: gentler angular ramp -> smoother overall motion (Q2)
+velocity_smoother_max_decel: [-0.5, 0.0, -2.0]
 
 sensor_frame_transforms:
   - parent: base_link
