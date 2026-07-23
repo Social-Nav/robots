@@ -1,7 +1,11 @@
+# local costmap sources (NO back camera — back_depth_pcl lags ~0.6s and local
+# does immediate avoidance; back pcl is global-only, see observation_sources_string_global)
 observation_sources_string: lidar depth_pcl
 observation_sources:
   - lidar
   - depth_pcl
+# global costmap sources (adds the rear camera so back obstacles enter the global map)
+observation_sources_string_global: lidar depth_pcl back_depth_pcl
 collision_monitor_sources:
   - lidar
   - depth_pcl
@@ -13,12 +17,19 @@ observation_sources_dict:
     clearing: true
     marking: true
     data_type: "LaserScan"
-    raytrace_max_range: 2.0
+    # raytrace (clearing) range MUST exceed obstacle (marking) range, otherwise old
+    # marks beyond the marking edge are never cleared -> stale obstacles (e.g. where a
+    # pedestrian used to stand). Clear out to 10 m, only mark real obstacles within 2 m.
+    raytrace_max_range: 8.0
     raytrace_min_range: 0.0
     obstacle_max_range: 2.0
     obstacle_min_range: 0.0
+    observation_persistence: 0.0   # keep only the latest scan; do not accumulate history
   depth_pcl:
-    topic: ${namespace}/depth_pcl
+    # Since the spawn remap nests each camera's own sub-namespace under the robot
+    # namespace, the chassis point cloud now publishes at <ns>/chassis_camera/depth_pcl
+    # (both cameras share topicName "/depth_pcl"; the sub-namespace disambiguates).
+    topic: ${namespace}/chassis_camera/depth_pcl
     sensor_frame: ${frame}chassis_camera
     max_obstacle_height: 1.5
     min_obstacle_height: 0.1
@@ -26,10 +37,30 @@ observation_sources_dict:
     marking: true
     data_type: "PointCloud2"
     type: pointcloud
-    raytrace_max_range: 2.0
+    # Clear out to 8 m so a pedestrian's old cells get raytraced away once they move;
+    # only mark within 2 m (depth point clouds get noisy/unreliable further out).
+    raytrace_max_range: 8.0
     raytrace_min_range: 0.0
     obstacle_max_range: 2.0
     obstacle_min_range: 0.0
+    observation_persistence: 0.0   # keep only the latest cloud; do not accumulate history
+  back_depth_pcl:
+    # Rear camera point cloud, now at <ns>/back_camera/depth_pcl (see depth_pcl note).
+    topic: ${namespace}/back_camera/depth_pcl
+    sensor_frame: ${frame}back_camera
+    max_obstacle_height: 1.5
+    min_obstacle_height: 0.1
+    clearing: true
+    marking: true
+    data_type: "PointCloud2"
+    type: pointcloud
+    # Clear out to 8 m so a pedestrian's old cells get raytraced away once they move;
+    # only mark within 2 m (depth point clouds get noisy/unreliable further out).
+    raytrace_max_range: 8.0
+    raytrace_min_range: 0.0
+    obstacle_max_range: 2.0
+    obstacle_min_range: 0.0
+    observation_persistence: 0.0   # keep only the latest cloud; do not accumulate history
 
 robot_base_frame: 'base_link'
 robot_odom_frame: 'odom'
@@ -77,6 +108,19 @@ sensor_frame_transforms:
     qy: 0.5
     qz: -0.5
     qw: 0.5
+  - parent: base_link
+    child: back_camera
+    # Derived from the live USD stage (base_link -> back_camera) and mapped into
+    # the same ROS optical-frame convention as chassis_camera (calibrated: the
+    # USD->ROS correction is a 180 deg rotation about X). Optical +Z points to
+    # base (-0.951, 0, -0.309): backward, ~18 deg downward tilt.
+    x: 0.0233
+    y: 0.0
+    z: 1.4245
+    qx: -0.572063
+    qy: -0.572065
+    qz: 0.415624
+    qw: 0.415623
 
 # Isaac Sim 内数据集采集（omni.replicator）：USD prim 路径
 # 须与场景中机器人实例一致：完整路径为 /World/Robots/<robot_stage_name>/<suffix>
