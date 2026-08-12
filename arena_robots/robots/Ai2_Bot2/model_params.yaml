@@ -6,9 +6,19 @@ observation_sources:
   - depth_pcl
 # global costmap sources (adds the rear camera so back obstacles enter the global map)
 observation_sources_string_global: lidar depth_pcl back_depth_pcl
+# collision_monitor sources: LIDAR ONLY (depth_pcl removed 2026-08-04).
+# The chassis depth cloud arrives ~1.75 s late (see the depth_pcl note below), which is far past
+# collision_monitor's source_timeout of 0.5 s, so it was ignored on EVERY cycle anyway and only
+# produced 20 Hz of "Latest source and current collision monitor node timestamps differ" spam.
+# collision_monitor reads all its sources once per cycle regardless of whether any polygon is
+# enabled, so the only way to silence it is to stop listing the source.
+# Nothing is lost: the sole polygon (SlowPolygon) is enabled:False, so collision_monitor performs
+# no velocity gating at all — it is a pure cmd_vel_smoothed -> cmd_vel relay. It stays in the chain
+# and in the lifecycle manager; only this dead subscription goes away.
+# depth_pcl REMAINS a local+global costmap source — the lidar is a single plane at z=0.1265, so the
+# cloud (0.1-1.5 m) is the only thing that sees overhangs and low obstacles. Do not drop it there.
 collision_monitor_sources:
   - lidar
-  - depth_pcl
 observation_sources_dict:
   lidar:
     topic: ${namespace}/laser_scan
@@ -29,6 +39,47 @@ observation_sources_dict:
     # Since the spawn remap nests each camera's own sub-namespace under the robot
     # namespace, the chassis point cloud now publishes at <ns>/chassis_camera/depth_pcl
     # (both cameras share topicName "/depth_pcl"; the sub-namespace disambiguates).
+    #
+    # KNOWN LATENCY ~1.75 s (measured 2026-08-04 from collision_monitor's timestamp-delta warnings:
+    # 1.750 / 1.750 / 1.767 / 1.700 s — all exact multiples of the 1/60 s sim step, i.e. a steady
+    # ~105-frame lag, NOT jitter). Isaac's render pipeline trails the physics step: the USD renders
+    # at 1280x720 (Ai2_Bot2.usda) and each of the two cameras runs three ROS2 writers
+    # (rgb + depth + depth_pcl) with frameSkipCount unset, so DistanceToImagePlane converts ~0.92 M
+    # points per camera per frame.
+    #
+    # This is why depth_pcl was dropped from collision_monitor_sources (its 0.5 s source_timeout
+    # rejected every cloud).
+    #
+    # WHAT THE LAG DOES TO THE COSTMAP — it is a TIME lag, not a coordinate offset.
+    # ObservationBuffer::bufferCloud transforms with the CLOUD'S OWN header.stamp
+    # (`tf2_buffer_.transform(cloud, ..., tf_tolerance_)` then re-stamps with cloud.header.stamp),
+    # NOT time-zero/latest-TF. tf2's buffer keeps ~10 s of history, so the projection is
+    # GEOMETRICALLY CORRECT: obstacles land where they truly were 1.75 s ago. Consequence: static
+    # scenery is exact, but a MOVING pedestrian is painted ~1.8 m behind their true position at a
+    # 1.05 m/s walk. Harmless for walls, real for ped avoidance.
+    #
+    # DO NOT try to fix this with a staleness check on this source. The costmap analogue of
+    # source_timeout is `<source>.expected_update_rate` (default 0.0 = off), but it compares
+    # clock_->now() against last_updated_, which is set to the ARRIVAL time — so it detects "the
+    # topic stopped", not "the content is old". This cloud arrives steadily at 20 Hz, so the check
+    # would never fire. Worse, ObstacleLayer ANDs every buffer's isCurrent() into the layer's
+    # current_ flag, so a source that did trip it would make the WHOLE local costmap non-current and
+    # bring back the "Costmap timed out" loop. observation_persistence 0.0 (below) is the right
+    # control here and is already set: only the newest cloud is kept, so nothing smears.
+    #
+    # Kept as a costmap source deliberately: the lidar is a single plane at z=0.1265, so this cloud
+    # (min/max_obstacle_height 0.1-1.5) is the only sensor that sees overhangs and low obstacles.
+    # A late-but-present obstacle beats a blind spot.
+    #
+    # PROPER FIX (not applied — needs a robot_usds change + re-test): set inputs:frameSkipCount on
+    # the ROS2CameraHelper writers (currently unset = publish every 60 Hz frame; 2 -> 20 Hz, still
+    # 2x the local costmap's 10 Hz update_frequency) and/or drop the render to 640x360. Whether that
+    # shortens the LAG or only cuts CPU depends on whether 1.75 s is pipeline backlog or fixed
+    # pipeline depth — measure with `ros2 topic delay` before and after.
+    # Raising update_rate will NOT help; the bottleneck is render throughput, not publish rate.
+    # NEVER set inputs:useSystemTime=true: it stamps clouds with wall time while the whole stack
+    # runs use_sim_time:=True, which breaks the TF lookup above. It would silence the latency
+    # warnings by hiding the lag, not removing it.
     topic: ${namespace}/chassis_camera/depth_pcl
     sensor_frame: ${frame}chassis_camera
     max_obstacle_height: 1.5
@@ -81,10 +132,25 @@ is_holonomic: false
 z_offset: 0.0
 
 # speed override
+# NOTE: max_vel_x / max_speed_xy are consumed ONLY by the dwb and regulated_pure_pursuit
+# controller configs (${max_vel_x}); social_mpc never reads them. Under social_mpc the sole
+# vx clamp is velocity_smoother_max_velocity[0] below. Left at 0.4 on purpose: RPP wires
+# max_vel_x straight into its desired_linear_vel, so raising it would silently speed up RPP.
 max_vel_x: 0.4
 max_vel_theta: 1.5
 max_speed_xy: 0.4
-velocity_smoother_max_velocity: [0.4, 0.0, 1.5]   # θ 1.3->1.5 (=max_vel_theta): faster large-angle in-place turn
+# vx 0.6->0.8: this IS a live cap on the robot (controller_server -> cmd_vel_nav ->
+# velocity_smoother -> cmd_vel_smoothed -> collision_monitor -> cmd_vel). It must match the MPC's
+# own ceiling, which is now the `optimizer.max_linear_velocity` param in
+# controllers/social_mpc/controller_config.yaml (also 0.8) rather than the old hardcoded 0.6.
+# Whichever of the two is LOWER is the binding one, so change them together.
+# HEADROOM CHECK at 0.8: braking distance v^2/(2*|max_decel|) = 0.64/1.0 = 0.64 m. The local
+# costmap is a 5x5 m rolling window centred on the robot, so forward visibility is 2.5 m and the
+# lidar marks out to obstacle_max_range 2.0 m — ample. (This check was tight while depth_pcl ran
+# ~1.75 s late, since blind-travel distance added v*1.75; that latency is resolved.)
+# θ 1.5 unchanged (=max_vel_theta). NOTE min turn radius grows with speed: R = v/wz_max = 0.8/1.4
+# = 0.57 m (was 0.39 m at 0.55 m/s cruise) — noticeable in narrow corridors.
+velocity_smoother_max_velocity: [0.8, 0.0, 1.5]
 velocity_smoother_min_velocity: [0.0, 0.0, -1.5]   # vx min 0 = no reverse at smoother stage too; angular stays ±1.5 (turn both ways)
 velocity_smoother_max_accel: [0.5, 0.0, 2.0]       # θ accel back to 2.0: gentler angular ramp -> smoother overall motion (Q2)
 velocity_smoother_max_decel: [-0.5, 0.0, -2.0]
