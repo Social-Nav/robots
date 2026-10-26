@@ -125,7 +125,10 @@ robot_radius: 0.48
 # 速度/加速度等控制参数不缩放（保持物理 odom 单位一致）
 scale: 0.8
 
-footprint: "[ [0.42, 0.48], [0.42, -0.48], [-0.42, -0.48], [-0.42, 0.48] ]"
+# Full USD model XY envelope in its fixed arms-tucked pose, measured before the
+# scale below. Arena applies `scale` to this polygon at launch, yielding
+# x=[-0.265, 0.257] m and y=[-0.305, 0.305] m at runtime.
+footprint: "[ [0.3209, 0.3813], [0.3209, -0.3813], [-0.3306, -0.3813], [-0.3306, 0.3813] ]"
 
 is_holonomic: false
 
