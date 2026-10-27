@@ -146,11 +146,13 @@ z_offset: 0.0
 # speed override
 # NOTE: max_vel_x / max_speed_xy are consumed ONLY by the dwb and regulated_pure_pursuit
 # controller configs (${max_vel_x}); social_mpc never reads them. Under social_mpc the sole
-# vx clamp is velocity_smoother_max_velocity[0] below. Left at 0.4 on purpose: RPP wires
-# max_vel_x straight into its desired_linear_vel, so raising it would silently speed up RPP.
-max_vel_x: 0.4
+# vx clamp is velocity_smoother_max_velocity[0] below.
+# Task34 (2026-10-27): the shared RPP desired_linear_vel and the velocity_smoother vx ceiling
+# are both 0.8 so a clear corridor can actually cruise at 0.8 m/s. RPP still applies
+# regulated/obstacle scaling and min_approach_linear_velocity 0.05; there is no forced minimum.
+max_vel_x: 0.8
 max_vel_theta: 1.5
-max_speed_xy: 0.4
+max_speed_xy: 0.8
 # vx 0.6->0.8: this IS a live cap on the robot (controller_server -> cmd_vel_nav ->
 # velocity_smoother -> cmd_vel_smoothed -> collision_monitor -> cmd_vel). It must match the MPC's
 # own ceiling, which is now the `optimizer.max_linear_velocity` param in
