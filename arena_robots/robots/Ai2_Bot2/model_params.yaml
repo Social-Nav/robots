@@ -1,22 +1,12 @@
-# local costmap sources (NO back camera — back_depth_pcl lags ~0.6s and local
-# does immediate avoidance; back pcl is global-only, see observation_sources_string_global)
+# Local costmap sources. The rear camera is global-only because its cloud is delayed.
 observation_sources_string: lidar depth_pcl
 observation_sources:
   - lidar
   - depth_pcl
-# global costmap sources (adds the rear camera so back obstacles enter the global map)
+# Global costmap sources, including the rear camera.
 observation_sources_string_global: lidar depth_pcl back_depth_pcl
-# collision_monitor sources: LIDAR ONLY (depth_pcl removed 2026-08-04).
-# The chassis depth cloud arrives ~1.75 s late (see the depth_pcl note below), which is far past
-# collision_monitor's source_timeout of 0.5 s, so it was ignored on EVERY cycle anyway and only
-# produced 20 Hz of "Latest source and current collision monitor node timestamps differ" spam.
-# collision_monitor reads all its sources once per cycle regardless of whether any polygon is
-# enabled, so the only way to silence it is to stop listing the source.
-# Nothing is lost: the sole polygon (SlowPolygon) is enabled:False, so collision_monitor performs
-# no velocity gating at all — it is a pure cmd_vel_smoothed -> cmd_vel relay. It stays in the chain
-# and in the lifecycle manager; only this dead subscription goes away.
-# depth_pcl REMAINS a local+global costmap source — the lidar is a single plane at z=0.1265, so the
-# cloud (0.1-1.5 m) is the only thing that sees overhangs and low obstacles. Do not drop it there.
+# Collision monitor uses LiDAR only; the disabled polygon makes it a cmd_vel relay.
+# Keep depth_pcl in both costmaps: the LiDAR is a low single-plane sensor.
 collision_monitor_sources:
   - lidar
 observation_sources_dict:
@@ -27,59 +17,17 @@ observation_sources_dict:
     clearing: true
     marking: true
     data_type: "LaserScan"
-    # raytrace (clearing) range MUST exceed obstacle (marking) range, otherwise old
-    # marks beyond the marking edge are never cleared -> stale obstacles (e.g. where a
-    # pedestrian used to stand). Clear out to 10 m, only mark real obstacles within 2 m.
+# Clearing must reach beyond the marking range to remove stale obstacles.
     raytrace_max_range: 8.0
     raytrace_min_range: 0.0
     obstacle_max_range: 2.0
     obstacle_min_range: 0.0
     observation_persistence: 0.0   # keep only the latest scan; do not accumulate history
   depth_pcl:
-    # Since the spawn remap nests each camera's own sub-namespace under the robot
-    # namespace, the chassis point cloud now publishes at <ns>/chassis_camera/depth_pcl
-    # (both cameras share topicName "/depth_pcl"; the sub-namespace disambiguates).
-    #
-    # KNOWN LATENCY ~1.75 s (measured 2026-08-04 from collision_monitor's timestamp-delta warnings:
-    # 1.750 / 1.750 / 1.767 / 1.700 s — all exact multiples of the 1/60 s sim step, i.e. a steady
-    # ~105-frame lag, NOT jitter). Isaac's render pipeline trails the physics step: the USD renders
-    # at 1280x720 (Ai2_Bot2.usda) and each of the two cameras runs three ROS2 writers
-    # (rgb + depth + depth_pcl) with frameSkipCount unset, so DistanceToImagePlane converts ~0.92 M
-    # points per camera per frame.
-    #
-    # This is why depth_pcl was dropped from collision_monitor_sources (its 0.5 s source_timeout
-    # rejected every cloud).
-    #
-    # WHAT THE LAG DOES TO THE COSTMAP — it is a TIME lag, not a coordinate offset.
-    # ObservationBuffer::bufferCloud transforms with the CLOUD'S OWN header.stamp
-    # (`tf2_buffer_.transform(cloud, ..., tf_tolerance_)` then re-stamps with cloud.header.stamp),
-    # NOT time-zero/latest-TF. tf2's buffer keeps ~10 s of history, so the projection is
-    # GEOMETRICALLY CORRECT: obstacles land where they truly were 1.75 s ago. Consequence: static
-    # scenery is exact, but a MOVING pedestrian is painted ~1.8 m behind their true position at a
-    # 1.05 m/s walk. Harmless for walls, real for ped avoidance.
-    #
-    # DO NOT try to fix this with a staleness check on this source. The costmap analogue of
-    # source_timeout is `<source>.expected_update_rate` (default 0.0 = off), but it compares
-    # clock_->now() against last_updated_, which is set to the ARRIVAL time — so it detects "the
-    # topic stopped", not "the content is old". This cloud arrives steadily at 20 Hz, so the check
-    # would never fire. Worse, ObstacleLayer ANDs every buffer's isCurrent() into the layer's
-    # current_ flag, so a source that did trip it would make the WHOLE local costmap non-current and
-    # bring back the "Costmap timed out" loop. observation_persistence 0.0 (below) is the right
-    # control here and is already set: only the newest cloud is kept, so nothing smears.
-    #
-    # Kept as a costmap source deliberately: the lidar is a single plane at z=0.1265, so this cloud
-    # (min/max_obstacle_height 0.1-1.5) is the only sensor that sees overhangs and low obstacles.
-    # A late-but-present obstacle beats a blind spot.
-    #
-    # PROPER FIX (not applied — needs a robot_usds change + re-test): set inputs:frameSkipCount on
-    # the ROS2CameraHelper writers (currently unset = publish every 60 Hz frame; 2 -> 20 Hz, still
-    # 2x the local costmap's 10 Hz update_frequency) and/or drop the render to 640x360. Whether that
-    # shortens the LAG or only cuts CPU depends on whether 1.75 s is pipeline backlog or fixed
-    # pipeline depth — measure with `ros2 topic delay` before and after.
-    # Raising update_rate will NOT help; the bottleneck is render throughput, not publish rate.
-    # NEVER set inputs:useSystemTime=true: it stamps clouds with wall time while the whole stack
-    # runs use_sim_time:=True, which breaks the TF lookup above. It would silence the latency
-    # warnings by hiding the lag, not removing it.
+    # Topic: <robot_ns>/chassis_camera/depth_pcl.
+    # Known render latency is about 1.75 s. This is a timestamp delay, not a frame offset;
+    # TF still projects the cloud using its original simulation timestamp.
+    # Keep only the newest cloud and use simulation-time stamps.
     topic: ${namespace}/chassis_camera/depth_pcl
     sensor_frame: ${frame}chassis_camera
     max_obstacle_height: 1.5
@@ -88,15 +36,14 @@ observation_sources_dict:
     marking: true
     data_type: "PointCloud2"
     type: pointcloud
-    # Clear out to 8 m so a pedestrian's old cells get raytraced away once they move;
-    # only mark within 2 m (depth point clouds get noisy/unreliable further out).
+    # Clear farther than the marking range so stale pedestrian cells are removed.
     raytrace_max_range: 8.0
     raytrace_min_range: 0.0
     obstacle_max_range: 2.0
     obstacle_min_range: 0.0
     observation_persistence: 0.0   # keep only the latest cloud; do not accumulate history
   back_depth_pcl:
-    # Rear camera point cloud, now at <ns>/back_camera/depth_pcl (see depth_pcl note).
+    # Rear camera point cloud.
     topic: ${namespace}/back_camera/depth_pcl
     sensor_frame: ${frame}back_camera
     max_obstacle_height: 1.5
@@ -105,8 +52,7 @@ observation_sources_dict:
     marking: true
     data_type: "PointCloud2"
     type: pointcloud
-    # Clear out to 8 m so a pedestrian's old cells get raytraced away once they move;
-    # only mark within 2 m (depth point clouds get noisy/unreliable further out).
+    # Clear farther than the marking range so stale obstacle cells are removed.
     raytrace_max_range: 8.0
     raytrace_min_range: 0.0
     obstacle_max_range: 2.0
@@ -117,45 +63,29 @@ robot_base_frame: 'base_link'
 robot_odom_frame: 'odom'
 robot_sensor_frame: 'lidar_frame'
 robot_model: Ai2_Bot2
-# USD 资源重定向到 arena_robots/deps/robot_usds 子模块
+# USD redirect to arena_robots/deps/robot_usds submodules
 usd_redirect: ../../../deps/robot_usds/humanoid/Ai2_Bot2/Ai2_Bot2.usda
 robot_radius: 0.48
 
-# 整体缩放系数（USD xformOp:scale + sensor TF + footprint + robot_radius + z_offset 自动按此乘数缩放）
-# 速度/加速度等控制参数不缩放（保持物理 odom 单位一致）
+# Uniform model scale. Applied to the USD root, sensor TFs, footprint, radius, and z offset.
 scale: 0.8
 
-# Full USD model XY envelope in its fixed arms-tucked pose, measured before the
-# scale below. Arena applies `scale` to this polygon at launch, yielding
-# x=[-0.265, 0.257] m and y=[-0.305, 0.305] m at runtime.
+# Full USD XY envelope before scaling. Arena scales this polygon at launch.
 footprint: "[ [0.3209, 0.3813], [0.3209, -0.3813], [-0.3306, -0.3813], [-0.3306, 0.3813] ]"
 
 is_holonomic: false
 
 z_offset: 0.0
 
-# speed override
-# NOTE: max_vel_x / max_speed_xy are consumed ONLY by the dwb and regulated_pure_pursuit
-# controller configs (${max_vel_x}); social_mpc never reads them. Under social_mpc the sole
-# vx clamp is velocity_smoother_max_velocity[0] below. Left at 0.4 on purpose: RPP wires
-# max_vel_x straight into its desired_linear_vel, so raising it would silently speed up RPP.
+# Speed limits for non-social controllers and the final velocity smoother.
+# Social MPC uses its profile/scenario speed target and the caps below.
 max_vel_x: 0.4
 max_vel_theta: 1.5
 max_speed_xy: 0.4
-# vx 0.6->0.8: this IS a live cap on the robot (controller_server -> cmd_vel_nav ->
-# velocity_smoother -> cmd_vel_smoothed -> collision_monitor -> cmd_vel). It must match the MPC's
-# own ceiling, which is now the `optimizer.max_linear_velocity` param in
-# controllers/social_mpc/controller_config.yaml (also 0.8) rather than the old hardcoded 0.6.
-# Whichever of the two is LOWER is the binding one, so change them together.
-# HEADROOM CHECK at 0.8: braking distance v^2/(2*|max_decel|) = 0.64/1.0 = 0.64 m. The local
-# costmap is a 5x5 m rolling window centred on the robot, so forward visibility is 2.5 m and the
-# lidar marks out to obstacle_max_range 2.0 m — ample. (This check was tight while depth_pcl ran
-# ~1.75 s late, since blind-travel distance added v*1.75; that latency is resolved.)
-# θ 1.5 unchanged (=max_vel_theta). NOTE min turn radius grows with speed: R = v/wz_max = 0.8/1.4
-# = 0.57 m (was 0.39 m at 0.55 m/s cruise) — noticeable in narrow corridors.
+# The lower of the MPC and smoother caps is binding.
 velocity_smoother_max_velocity: [0.8, 0.0, 1.5]
-velocity_smoother_min_velocity: [0.0, 0.0, -1.5]   # vx min 0 = no reverse at smoother stage too; angular stays ±1.5 (turn both ways)
-velocity_smoother_max_accel: [0.5, 0.0, 2.0]       # θ accel back to 2.0: gentler angular ramp -> smoother overall motion (Q2)
+velocity_smoother_min_velocity: [0.0, 0.0, -1.5]   # No reverse; angular velocity is bidirectional.
+velocity_smoother_max_accel: [0.5, 0.0, 2.0]
 velocity_smoother_max_decel: [-0.5, 0.0, -2.0]
 
 sensor_frame_transforms:
@@ -179,10 +109,7 @@ sensor_frame_transforms:
     qw: 0.5
   - parent: base_link
     child: back_camera
-    # Derived from the live USD stage (base_link -> back_camera) and mapped into
-    # the same ROS optical-frame convention as chassis_camera (calibrated: the
-    # USD->ROS correction is a 180 deg rotation about X). Optical +Z points to
-    # base (-0.951, 0, -0.309): backward, ~18 deg downward tilt.
+    # Calibrated ROS optical frame: points backward and about 18 degrees downward.
     x: 0.0233
     y: 0.0
     z: 1.4245
@@ -191,20 +118,18 @@ sensor_frame_transforms:
     qz: 0.415624
     qw: 0.415623
 
-# Isaac Sim 内数据集采集（omni.replicator）：USD prim 路径
-# 须与场景中机器人实例一致：完整路径为 /World/Robots/<robot_stage_name>/<suffix>
-# 若 task_generator 生成 sim_path 为 robot0，请将 robot_stage_name 改为 robot0
+# Isaac Sim data logging paths. Full prim path:
+# /World/Robots/<robot_stage_name>/<suffix>.
 data_logger:
   robot_stage_name: Ai2_Bot2
   camera_prim_suffix: head_link2/head_camera/d435/head_camera
   lidar_prim_suffix: Ai2_Bot2_Chassis/base_footprint/base_link/lidar_link
   pedestrian_root_path: /World/Pedestrians
 
-# Proactive-yielding trigger 触发并暂停仿真后，抓取的静态快照（isaac 侧 snapshot_capturer）
-# head/back 相机取 RGB+深度；topdown 为临时正射相机，以机器人为中心俯视，仅 RGB。
-# 相机 prim 完整路径 = /World/Robots/<robot_stage_name>/<suffix>（stage 名复用上面的 data_logger 配置）
+# Snapshot camera paths used after proactive yielding pauses the simulation.
+# Head/back cameras capture RGB+depth; topdown captures RGB only.
 snapshot:
   head_camera_suffix: head_link2/head_camera/d435/head_camera
   back_camera_suffix: body_link4/back_camera/d435/back_camera
-  topdown_half_extent: 3.0    # 俯视图覆盖半径 (m)，视野边长 = 2×该值
-  topdown_height: 3.0         # 俯视相机离机器人高度 (m) — 略高于场景天花板
+  topdown_half_extent: 3.0    # Half-width of the top-down view (m).
+  topdown_height: 3.0         # Top-down camera height (m).
